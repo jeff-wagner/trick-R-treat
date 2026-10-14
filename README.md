@@ -22,6 +22,16 @@ shiny::runApp()                        # from the project folder
 * **Undo** (or Backspace) removes the last point or cut. **Esc** cancels the shape in progress. **Start over** clears everything.
 * Light or snuff out the candle, pick a glow colour, roll a **New sky**, and **Save PNG** to keep your jack-o'-lantern.
 
+### Deploying to Posit Connect Cloud
+
+`manifest.json` lists the app file (`app.R`) and its R package dependencies, so Connect Cloud can deploy it straight from this GitHub repo. In Connect Cloud, choose **Publish → Shiny**, pick this repository and branch, and select `app.R` as the primary file.
+
+If you change the app's packages, regenerate the manifest from the project folder:
+
+```r
+rsconnect::writeManifest(appFiles = "app.R")
+```
+
 ### Classic script
 
 `RpumpkinCarving.R` is the original version, which uses `locator()`. Change the number of points in each `locator()` call to make simpler or more complex carvings.
