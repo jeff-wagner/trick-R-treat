@@ -152,6 +152,63 @@ document.addEventListener('keydown', function(e) {
 });
 "))
 
+# Stamp preview: drawn in the browser on an SVG layer over the plot, so it
+# follows the mouse without re-rendering the R plot. The server sends the
+# stamp outline (centred on 0,0) and the plot's par("usr") for the mapping.
+preview_js <- tags$script(HTML("
+(function() {
+  var tmpl = null, usr = null, mouse = null;
+
+  function draw() {
+    var svg = document.getElementById('stamp-preview');
+    var img = document.querySelector('#pumpkin img');
+    if (!svg) return;
+    svg.innerHTML = '';
+    if (!tmpl || !tmpl.active || !usr || !mouse || !img) return;
+
+    var wrap = document.getElementById('carve-wrap').getBoundingClientRect();
+    var r = img.getBoundingClientRect();
+    svg.style.left = (r.left - wrap.left) + 'px';
+    svg.style.top = (r.top - wrap.top) + 'px';
+    svg.setAttribute('width', r.width);
+    svg.setAttribute('height', r.height);
+
+    var cx = usr[0] + (mouse.x - r.left) / r.width * (usr[1] - usr[0]);
+    var cy = usr[3] - (mouse.y - r.top) / r.height * (usr[3] - usr[2]);
+    var meanX = tmpl.x.reduce(function(a, b) { return a + b; }, 0) / tmpl.x.length;
+
+    var signs = [1];
+    if (tmpl.mirror && Math.abs(cx + meanX) > 0.05) signs.push(-1);
+    signs.forEach(function(s) {
+      var pts = tmpl.x.map(function(x, i) {
+        var px = (s * (cx + x) - usr[0]) / (usr[1] - usr[0]) * r.width;
+        var py = (usr[3] - (cy + tmpl.y[i])) / (usr[3] - usr[2]) * r.height;
+        return px.toFixed(1) + ',' + py.toFixed(1);
+      }).join(' ');
+      var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('fill', 'rgba(255, 210, 63, 0.3)');
+      poly.setAttribute('stroke', '#7fffd4');
+      poly.setAttribute('stroke-width', '2');
+      poly.setAttribute('stroke-dasharray', '6 4');
+      svg.appendChild(poly);
+    });
+  }
+
+  document.addEventListener('mousemove', function(e) {
+    var img = document.querySelector('#pumpkin img');
+    var r = img && img.getBoundingClientRect();
+    var inside = r && e.clientX >= r.left && e.clientX <= r.right &&
+                 e.clientY >= r.top && e.clientY <= r.bottom;
+    var next = inside ? {x: e.clientX, y: e.clientY} : null;
+    if (next || mouse) { mouse = next; draw(); }
+  });
+
+  Shiny.addCustomMessageHandler('stamp_template', function(m) { tmpl = m; draw(); });
+  Shiny.addCustomMessageHandler('plot_usr', function(m) { usr = m; draw(); });
+})();
+"))
+
 ui <- page_sidebar(
   title = "trick-R-treat: carve a pumpkin",
   theme = bs_theme(bg = "#16111f", fg = "#f5e6d3", primary = "#ff7a18",
@@ -188,7 +245,13 @@ ui <- page_sidebar(
   card(
     full_screen = TRUE,
     card_body(
-      plotOutput("pumpkin", height = "640px", click = "carve_click"),
+      as_fill_carrier(div(
+        id = "carve-wrap", style = "position: relative;",
+        plotOutput("pumpkin", height = "640px", click = "carve_click"),
+        tags$svg(id = "stamp-preview",
+                 style = "position: absolute; left: 0; top: 0; pointer-events: none;")
+      )),
+      preview_js,
       class = "p-0"
     ),
     card_footer(textOutput("status"))
@@ -274,7 +337,19 @@ server <- function(input, output, session) {
 
   output$pumpkin <- renderPlot({
     draw_pumpkin(cuts(), current(), stars(), lit = input$lit, glow = input$glow)
+    session$sendCustomMessage("plot_usr", par("usr"))
   }, bg = sky_col)
+
+  # Outline for the browser-side stamp preview
+  observe({
+    req(input$stamp, input$size)
+    s <- stamp_shape(input$stamp, 0, 0, input$size, input$rot)
+    session$sendCustomMessage("stamp_template", list(
+      x = s$x, y = s$y,
+      mirror = isTRUE(input$mirror),
+      active = identical(input$mode, "stamp")
+    ))
+  })
 
   output$status <- renderText({
     n_cur <- length(current()$x)

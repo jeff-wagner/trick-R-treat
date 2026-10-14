@@ -17,7 +17,7 @@ shiny::runApp()                        # from the project folder
 ```
 
 * **Freehand:** click on the pumpkin to drop points. Close the shape by clicking the first point again, or by pressing **Enter**/**Finish shape**. Tick *Smooth curved edges* for rounder cuts.
-* **Stamp a shape:** click to place ready-made triangles, circles, diamonds, stars, grins or toothy grins. Use the sliders to change size and rotation.
+* **Stamp a shape:** a dashed outline follows your mouse to show where the shape will go, mirrored copy included. Click to place ready-made triangles, circles, diamonds, stars, grins or toothy grins. Use the sliders to change size and rotation.
 * **Mirror left/right:** carve one eye and the other appears automatically. Shapes placed on the centre line, like a nose, are not doubled.
 * **Undo** (or Backspace) removes the last point or cut. **Esc** cancels the shape in progress. **Start over** clears everything.
 * Light or snuff out the candle, pick a glow colour, roll a **New sky**, and **Save PNG** to keep your jack-o'-lantern.
